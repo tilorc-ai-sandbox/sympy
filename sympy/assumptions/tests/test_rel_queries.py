@@ -160,6 +160,20 @@ def test_equality():
     assert ask(Q.eq(x,z), Q.eq(x,y) & Q.eq(y,z)) is True
 
 
+def test_extended_real_infinite_cancellation():
+    a = Symbol('a', extended_real=True)
+    assert ask(a + 1 > a, Q.extended_real(a)) is None
+    assert ask(a + 1 >= a, Q.extended_real(a)) is True
+    assert ask(a >= a + 1, Q.extended_real(a)) is None
+    assert ask(a + 1 <= a, Q.extended_real(a)) is None
+    assert ask(a < a + 1, Q.extended_real(a)) is None
+
+    b = Symbol('b', real=True)
+    assert ask(b + 1 > b, Q.real(b)) is True
+    assert ask(b + 1 >= b, Q.real(b)) is True
+    assert ask(b >= b + 1, Q.real(b)) is False
+
+
 @XFAIL
 def test_equality_failing():
     # Note that implementing the substitution property of equality

@@ -1266,6 +1266,18 @@ def test_issue_23731():
     assert Eq(nr, .1) == False
 
 
+def test_is_ge_extended_real_infinite_cancellation():
+    a = Symbol('a')
+    assert is_ge(a + 1, a, Q.extended_real(a)) is True
+    assert is_ge(a, a + 1, Q.extended_real(a)) is None
+    assert is_gt(a + 1, a, Q.extended_real(a)) is None
+    assert is_lt(a, a + 1, Q.extended_real(a)) is None
+    assert is_le(a + 1, a, Q.extended_real(a)) is None
+    b = Symbol('b')
+    assert is_gt(b + 1, b, Q.real(b)) is True
+    assert is_ge(b + 1, b, Q.real(b)) is True
+
+
 def test_rewrite_Add():
     from sympy.testing.pytest import warns_deprecated_sympy
     with warns_deprecated_sympy():

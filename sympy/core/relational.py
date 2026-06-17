@@ -1405,6 +1405,7 @@ def is_ge(lhs, rhs, assumptions=None):
     True
     """
     from sympy.assumptions.wrapper import AssumptionsWrapper, is_extended_nonnegative
+    from sympy.assumptions.ask import ask, Q
 
     if not (isinstance(lhs, Expr) and isinstance(rhs, Expr)):
         raise TypeError("Can only compare inequalities with Expr")
@@ -1430,8 +1431,21 @@ def is_ge(lhs, rhs, assumptions=None):
             diff = lhs - rhs
             if diff is not S.NaN:
                 rv = is_extended_nonnegative(diff, assumptions)
-                if rv is not None:
-                    return rv
+                if rv is True:
+                    return True
+                if rv is False:
+                    # If diff is finite but lhs/rhs could both be infinite,
+                    # the symbolic simplification may have masked a NaN result
+                    # (e.g. oo - (oo + 1) = -1 symbolically but NaN numerically).
+                    # Use raw .is_finite first; fall back to ask() only for lhs
+                    # (checking rhs would be expensive for expressions like a+1).
+                    if diff.is_finite is True:
+                        lhs_finite = lhs.is_finite
+                        if lhs_finite is None and assumptions is not None:
+                            lhs_finite = ask(Q.finite(lhs), assumptions)
+                        if lhs_finite is not True and rhs.is_finite is not True:
+                            return None
+                    return False
 
 
 def is_neq(lhs, rhs, assumptions=None):
