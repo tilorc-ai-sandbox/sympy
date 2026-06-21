@@ -1696,9 +1696,7 @@ def test_integer():
 
 
 def test_integer_pow_symbolic():
-    # integer base and exponent with non-negative exponent is always an integer
     assert ask(Q.integer(x**y), Q.integer(x) & Q.integer(y) & ~Q.negative(y)) is True
-    # integer base and negative exponent with base not ±1 is not an integer
     assert ask(Q.integer(x**y), Q.integer(x) & Q.integer(y) & Q.negative(y) & ~Q.zero(x - 1) & ~Q.zero(x + 1)) is False
 
 
