@@ -4,9 +4,10 @@ from __future__ import annotations
 __all__ = [
     'Domain', 'FiniteField', 'IntegerRing', 'RationalField', 'RealField',
     'ComplexField', 'AlgebraicField', 'PolynomialRing', 'FractionField',
-    'ExpressionDomain', 'PythonRational',
+    'ExpressionDomain', 'PythonRational', 'BooleanSemiring',
 
     'GF', 'FF', 'ZZ', 'QQ', 'ZZ_I', 'QQ_I', 'RR', 'CC', 'EX', 'EXRAW',
+    'BOOL',
 ]
 
 from .domain import Domain
@@ -22,6 +23,7 @@ from .fractionfield import FractionField
 from .expressiondomain import ExpressionDomain, EX
 from .expressionrawdomain import EXRAW
 from .pythonrational import PythonRational
+from .booleansemiring import BooleanSemiring, BOOL
 
 
 # This is imported purely for backwards compatibility because some parts of
