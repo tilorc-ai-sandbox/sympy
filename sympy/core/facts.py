@@ -468,6 +468,38 @@ class FactRules:
             prereq[k] |= pitems
         self.prereq = prereq
 
+        self._build_bitsets()
+
+    def _build_bitsets(self):
+        """Precompute bitset representations for fast beta-condition checks in FactKB."""
+        facts_list = sorted(self.defined_facts)
+        fact_to_idx = {f: i for i, f in enumerate(facts_list)}
+        self._fact_to_idx = fact_to_idx
+
+        self._full_impl_bits = {}
+        for key, impls in self.full_implications.items():
+            t = 0
+            f = 0
+            for fact, val in impls:
+                bit = 1 << fact_to_idx[fact]
+                if val:
+                    t |= bit
+                else:
+                    f |= bit
+            self._full_impl_bits[key] = (t, f)
+
+        self._beta_rules_bits = []
+        for bcond, bimpl in self.beta_rules:
+            t = 0
+            f = 0
+            for fact, val in bcond:
+                bit = 1 << fact_to_idx[fact]
+                if val:
+                    t |= bit
+                else:
+                    f |= bit
+            self._beta_rules_bits.append((t, f, bimpl))
+
     def _to_python(self) -> str:
         """ Generate a string with plain python representation of the instance """
         return '\n'.join(self.print_rules())
@@ -483,6 +515,7 @@ class FactRules:
         self.beta_rules = data['beta_rules']
         self.defined_facts = set(data['defined_facts'])
 
+        self._build_bitsets()
         return self
 
     def _defined_facts_lines(self):
@@ -608,10 +641,24 @@ class FactKB(dict):
         # attribute access overhead
         full_implications = self.rules.full_implications
         beta_triggers = self.rules.beta_triggers
-        beta_rules = self.rules.beta_rules
+        full_impl_bits = self.rules._full_impl_bits
+        beta_rules_bits = self.rules._beta_rules_bits
+        fact_to_idx = self.rules._fact_to_idx
 
         if isinstance(facts, dict):
             facts = facts.items()
+
+        # Seed masks from the current dict state (picks up facts from prior
+        # calls on the same KB without persisting mask across calls).
+        true_mask = 0
+        false_mask = 0
+        for fact, val in self.items():
+            idx = fact_to_idx.get(fact)
+            if idx is not None:
+                if val is True:
+                    true_mask |= 1 << idx
+                elif val is False:
+                    false_mask |= 1 << idx
 
         while facts:
             beta_maytrigger = set()
@@ -621,15 +668,27 @@ class FactKB(dict):
                 if not self._tell(k, v) or v is None:
                     continue
 
-                # lookup routing tables
+                # track the asserted fact in the local masks
+                idx = fact_to_idx.get(k)
+                if idx is not None:
+                    if v:
+                        true_mask |= 1 << idx
+                    else:
+                        false_mask |= 1 << idx
+
                 for key, value in full_implications[k, v]:
                     self._tell(key, value)
 
+                # bulk-OR all alpha implications into masks in O(1)
+                impl_true, impl_false = full_impl_bits.get((k, v), (0, 0))
+                true_mask |= impl_true
+                false_mask |= impl_false
+
                 beta_maytrigger.update(beta_triggers[k, v])
 
-            # --- beta chains ---
+            # --- beta chains: bitset check replaces all(self.get(...)) ---
             facts = []
             for bidx in beta_maytrigger:
-                bcond, bimpl = beta_rules[bidx]
-                if all(self.get(k) is v for k, v in bcond):
+                t_need, f_need, bimpl = beta_rules_bits[bidx]
+                if true_mask & t_need == t_need and false_mask & f_need == f_need:
                     facts.append(bimpl)
